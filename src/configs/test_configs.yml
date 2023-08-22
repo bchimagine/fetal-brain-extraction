@@ -1,0 +1,17 @@
+model_name: "BasicUNet" #AttUNet, DynUNet, SwinUNETR
+saved_model_path: "../../basicUNET_checkpoint-103.pth"
+
+test_data_type: "file"     #or "path
+test_data_paths: ['../../datasets/t2mri_dataset/data_csv/test_data.csv']
+modality: "otherscanners"
+
+test_augmentation: False
+img_size: 256
+classes_num: 2
+save_path: "../results/BasicUNet"
+include_background: False
+save_predictions: True
+save_metrics: True
+data_root_dir: ""
+plot_results: False
+
