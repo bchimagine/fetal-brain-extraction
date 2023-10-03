@@ -1,17 +1,21 @@
-model_name: "BasicUNet" #AttUNet, DynUNet, SwinUNETR
-saved_model_path: "../../basicUNET_checkpoint-103.pth"
+model_name: "AttUNet" #BasicUNet, DynUNet, SwinUNETR
+saved_model_path: "../saved_models/AttUNet_t2d/AttUNet_checkpoint-188.pth"
 
-test_data_type: "file"     #or "path
-test_data_paths: ['../../datasets/t2mri_dataset/data_csv/test_data.csv']
-modality: "otherscanners"
+test_data_type: "file"     #or "path, file
+test_data_paths: ['../../datasets/fmri_dataset/data_csv/test_data.csv'] #'../../datasets/fmri_dataset/OpenNeuro_3D' # ['../../datasets/t2mri_dataset/data_csv/otherscanners.csv']
+modality: "fMRI" #"fMRI" otherscanners
 
 test_augmentation: False
 img_size: 256
 classes_num: 2
-save_path: "../results/BasicUNet"
 include_background: False
+
+save_path: "../results/AttUNet_t2d"
+
 save_predictions: True
+data_root_dir: "../../datasets/"
+
 save_metrics: True
-data_root_dir: ""
-plot_results: False
+
+plot_results: True
 

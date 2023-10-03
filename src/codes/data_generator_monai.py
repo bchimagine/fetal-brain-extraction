@@ -262,7 +262,8 @@ class FetalTestData:
             tr.EnsureChannelFirstd(keys=["image", "label"]),
             tr.Spacingd(keys="image", pixdim=(1.0, 1.0, -1.0), mode="bilinear"),
             SliceWiseNormalizeIntensityd(keys=["image"], subtrahend=0.0, divisor=None, nonzero=True),
-            tr.Resized(keys="image", spatial_size=(self.config["img_size"], self.config["img_size"], -1))
+            # tr.Resized(keys="image", spatial_size=(self.config["img_size"], self.config["img_size"], -1))
+            # tr.ResizeWithPadOrCropd(keys="image", spatial_size=(self.config["img_size"], self.config["img_size"], -1)),
         ]
         return test_transforms_list
 
@@ -270,8 +271,13 @@ class FetalTestData:
         test_transforms_list = self.transformations()
 
         if self.config["test_data_type"] == "path":
-            test_images = sorted(glob(os.path.join(self.config["test_data_paths"], 'images', "img_*.nii.gz")))
-            test_labels = sorted(glob(os.path.join(self.config["test_data_paths"], 'masks', "mask_*.nii.gz")))
+            # test_images = sorted(glob(os.path.join(self.config["test_data_paths"], 'images', "img_*.nii.gz")))
+            # test_labels = sorted(glob(os.path.join(self.config["test_data_paths"], 'masks', "mask_*.nii.gz")))
+
+            test_images = sorted(glob(os.path.join(self.config["test_data_paths"], 'data', '**/*.nii.gz'),
+                                      recursive=True))
+            test_labels = sorted(glob(os.path.join(self.config["test_data_paths"], 'manual-masks', '**/*.nii.gz'),
+                                      recursive=True))
 
         elif self.config["test_data_type"] == "file":
             test_images = []
@@ -290,25 +296,3 @@ class FetalTestData:
                                      num_workers=0)
 
         return test_dataloader, test_files, test_transforms_list
-
-# ____________________________________________________________________________________________________
-
-# if __name__ == '__main__':
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     with open('../configs/train_configs.yml', 'r') as file:
-#         configs = yaml.safe_load(file)
-#
-#     configs["fast_training"] = False
-#     configs["augmentation"] = True
-#
-#     fetal_data = FetalTrainData(configs)
-#     train_data_loader, val_data_loader = fetal_data.load_data()
-#
-#     i = 0
-#     cmap_mask = matplotlib.colors.ListedColormap(['none', 'red'])
-#     check_data = first(train_data_loader)
-#     image, label = (check_data["image"][i][0], check_data["label"][i][0])
-#     print(f"image shape: {image.shape}, label shape: {label.shape}")
-#     plt.imshow(image[:, :], cmap="gray")
-#     plt.imshow(label[:, :], alpha=0.1, cmap=cmap_mask)
-#     plt.show()

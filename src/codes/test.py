@@ -1,7 +1,8 @@
 import os
 import math
+import sys
 import time
-
+import logging
 import pandas as pd
 import yaml
 import argparse
@@ -80,6 +81,12 @@ def test(args):
     if not os.path.exists(configs["save_path"]):
         os.makedirs(configs["save_path"])
 
+    logging.basicConfig(filename=configs["save_path"] + "/log_test_" + configs["modality"] + ".txt", level=logging.INFO,
+                        format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    logging.info(str(args))
+    logging.info(str(configs))
+
     device = args.device
     model = get_network(configs)
     if args.n_gpu > 1:
@@ -89,6 +96,10 @@ def test(args):
         model.to(device)
 
     model.load_state_dict(torch.load(configs["saved_model_path"], map_location=device))
+
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    logging.info(f"total_trainable_parameters: {pytorch_total_params}")
+
     model.eval()
 
     fetal_test_data = FetalTestData(configs)
@@ -97,6 +108,8 @@ def test(args):
     inferer = SliceInferer(
         roi_size=(configs["img_size"], configs["img_size"]),
         spatial_dim=2,
+        sw_batch_size=4,
+        overlap=0.50,
         progress=False
     )
 
@@ -218,11 +231,28 @@ def test(args):
                     subj_list.append(subject_id)
                     data_type.append('fMRI')
 
+                elif configs["modality"] == "fMRI-ON":
+                    subject_id = os.path.dirname(test_inputs.meta["filename_or_obj"][0]).split('/')[6]
+                    subj_list.append(subject_id)
+                    data_type.append('fMRI-ON')
+
                 if configs["plot_results"]:
-                    if dice.item() < 0.90:
+                    if dice.item() < 0.85:
                         test_output = from_engine(["pred"])(test_data)
                         original_image = tr.LoadImage()(test_output[0].meta["filename_or_obj"])[0]
                         original_label = tr.LoadImage()(test_labels[0].meta["filename_or_obj"])[0]
+
+                        filename_without_extension = os.path.splitext(os.path.basename
+                                                                      (test_inputs.meta["filename_or_obj"][0]))[0]
+                        parent_folder = os.path.basename(os.path.dirname(test_inputs.meta["filename_or_obj"][0]))
+
+                        new_filename = f"{parent_folder}_{filename_without_extension}.png"
+                        save_dir = os.path.join(configs["save_path"], 'bad_dice_figs')
+                        if not os.path.exists(save_dir):
+                            os.makedirs(save_dir)
+
+                        save_name = os.path.join(save_dir, new_filename)
+
                         plot_images(
                             original_image,
                             test_output[0].detach().cpu()[0],
@@ -230,12 +260,12 @@ def test(args):
                             volume_dice=dice.item(),
                             mean_slice_dice=None,
                             slice_dice=None,
-                            save_name=None,
+                            save_name=save_name,
                             display=False
                         )
-                    print(test_output[0].meta["filename_or_obj"])
-                    print(dice.item())
-                    print(iou.item())
+                        print(test_inputs.meta["filename_or_obj"][0])
+                        print(dice.item())
+                        print(iou.item())
 
     if configs["save_metrics"]:
         header = ["Method", "Modality", "Type", "Subject", "Dice", "IoU"]
@@ -246,19 +276,21 @@ def test(args):
 
         data = list(zip(method, modality, data_type, subj_list, dice_list, iou_list))
 
-        file_path = os.path.join(args.save_path, configs["modality"] + "_" + method[0] + ".csv")
+        file_path = os.path.join(configs["save_path"], configs["modality"] + "_" + method[0] + ".csv")
         df = pd.DataFrame(data, columns=header)
         df.to_csv(file_path, index=False)
 
-        print("evaluation metric dice mean:", np.mean(dice))
-        print("evaluation metric dice std:", np.std(dice))
+        logging.info(f"evaluation metric dice mean: {np.mean(dice_list)}")
+        logging.info(f"evaluation metric dice std: {np.std(dice_list)}")
 
-        print("evaluation metric iou mean:", np.mean(iou_list))
-        print("evaluation metric iou std:", np.std(iou_list))
+        logging.info(f"evaluation metric iou mean: {np.mean(iou_list)}")
+        logging.info(f"evaluation metric iou std: {np.std(iou_list)}")
 
-    print(np.mean(test_time[1:]))
-    print("evaluation metric dice:", dice_metric.aggregate())
-    print("evaluation metric iou:", iou.aggregate())
+    logging.info(f"evaluation metric dice: {dice_metric.aggregate()}")
+    logging.info(f"evaluation metric iou: {iou_metric.aggregate()}")
+
+    logging.info(f"latency mean: {np.mean(test_time[1:])}")
+    logging.info(f"latency std: {np.std(test_time[1:])}")
 
     dice_metric.reset()
     iou_metric.reset()

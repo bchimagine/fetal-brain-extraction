@@ -131,25 +131,24 @@ def train(args):
                 dice_metric.reset()
 
                 metric_values.append(metric)
-                if metric > best_metric:
+                if (epoch + 1) % 10 == 0 or (epoch + 1) == max_epochs:
+                    save_mode_path = os.path.join(configs["save_path"], configs["model_name"] +
+                                                  '_checkpoint-%s.pth' % (epoch + 1))
+                    torch.save(model.state_dict(), save_mode_path)
+                    logging.info(f"saved model at current epoch: {epoch + 1}, current mean dice: {metric:.4f}")
+
+                elif metric > best_metric:
                     best_metric = metric
                     best_metric_epoch = epoch + 1
                     save_mode_path = os.path.join(configs["save_path"], configs["model_name"] +
-                                                  '_checkpoint-%s.pth' % (epoch+1))
+                                                  '_checkpoint-%s.pth' % (epoch + 1))
                     torch.save(model.state_dict(), save_mode_path)
-                    logging.info(f"saved model at current epoch: {epoch + 1}, current best mean dice: {metric:.4f}",
-                                 f"at epoch: {best_metric_epoch}")
-
-                if epoch + 1 % 10 == 0 or epoch + 1 == max_epochs:
-                    save_mode_path = os.path.join(configs["save_path"], configs["model_name"] +
-                                                  '_checkpoint-%s.pth' % (epoch+1))
-                    torch.save(model.state_dict(), save_mode_path)
-                    logging.info(f"saved model at current epoch: {epoch + 1}, current mean dice: {metric:.4f}",
-                                 f"at epoch: {best_metric_epoch}")
+                    logging.info(f"saved model at current epoch: {epoch + 1}, current best mean dice: {metric:.4f}"
+                                 f" at epoch: {best_metric_epoch}")
 
     train_time = time.time() - step_start
-    print(f"train completed in {train_time:.4f} seconds "  f"best_metric: {best_metric:.4f} "
-          f"" f"at epoch: {best_metric_epoch}")
+    logging.info(f"train completed in {train_time:.4f} seconds "  f"best_metric: {best_metric:.4f} "
+                 f"" f"at epoch: {best_metric_epoch}")
 
 
 if __name__ == '__main__':

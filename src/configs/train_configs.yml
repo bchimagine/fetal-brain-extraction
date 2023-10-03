@@ -1,21 +1,22 @@
 model_name: "AttUNet"
 
 train_data_type: "path"
-train_data_paths: '../../datasets/train_all'
+train_data_paths: '../../datasets/train_t2d'
 
 validation_data_type: "file"
-validation_data_paths: ['../../datasets/dmri_dataset/data_csv/validation_data.csv',
-                        '../../datasets/fmri_dataset/data_csv/validation_data.csv',
-                        '../../datasets/t2mri_dataset/data_csv/validation_data.csv']
+validation_data_paths: ['../../datasets/t2mri_dataset/data_csv/validation_data.csv',
+                        '../../datasets/dmri_dataset/data_csv/validation_data.csv']
+#                        '../../datasets/fmri_dataset/data_csv/validation_data.csv',
+
 
 augmentation: True
 fast_training: True
 batch_size: 8
 img_size: 256
-max_epochs: 150
+max_epochs: 300
 classes_num: 2
 val_interval: 2
 include_background: False
 optimizer: "Adam"
 learning_rate: 0.00001
-save_path: "../saved_models/AttUNet/"
+save_path: "../saved_models/AttUNet_t2d/"

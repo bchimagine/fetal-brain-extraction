@@ -1,5 +1,4 @@
 import os
-import time
 from glob import glob
 
 import numpy as np
@@ -13,6 +12,7 @@ from monai.inferers import SliceInferer
 from monai.networks.nets import AttentionUnet
 from monai.transforms import SaveImaged, MapTransform
 from monai.utils import set_determinism
+from tqdm import tqdm
 
 
 class SliceWiseNormalizeIntensityd(MapTransform):
@@ -68,7 +68,6 @@ class FetalTestData:
             tr.EnsureChannelFirstd(keys=["image"]),
             tr.Spacingd(keys="image", pixdim=(1.0, 1.0, -1.0), mode="bilinear", padding_mode="zeros"),
             SliceWiseNormalizeIntensityd(keys=["image"], subtrahend=0.0, divisor=None, nonzero=True),
-            tr.Resized(keys="image", spatial_size=(self.img_size, self.img_size, -1))
         ]
         return test_transforms_list
 
@@ -91,11 +90,11 @@ def inference(args):
         spatial_dims=2,
         in_channels=1,
         out_channels=2,
-        channels=(32, 64, 128, 256, 512),
+        channels=(64, 128, 256, 512, 1024),
         strides=(2, 2, 2, 2),
         kernel_size=3,
         up_kernel_size=3,
-        dropout=0.2,
+        dropout=0.15,
     )
 
     device = args.device
@@ -111,41 +110,41 @@ def inference(args):
     fetal_test_data = FetalTestData(args.data_path)
     test_dataloader, test_org_transforms_list = fetal_test_data.load_data()
 
-    inferer = SliceInferer(roi_size=(256, 256),
-                           spatial_dim=2,
-                           progress=False)
-    inf_time = []
-
-    post_transforms = tr.Compose(
-        [
-            tr.Invertd(
-                keys="pred",
-                transform=tr.Compose(test_org_transforms_list),
-                orig_keys="image",
-                meta_keys="pred_meta_dict",
-                orig_meta_keys="image_meta_dict",
-                meta_key_postfix="meta_dict",
-                nearest_interp=False,
-                to_tensor=True,
-            ),
-            tr.Activationsd(keys="pred", softmax=True),
-            tr.AsDiscreted(keys="pred", argmax=True, to_onehot=None),
-            # tr.RemoveSmallObjectsd(keys="pred", min_size=50, connectivity=1),
-            SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir=args.data_path,
-                       separate_folder=False, output_postfix="maskpred", resample=False),
-        ]
+    inferer = SliceInferer(
+        roi_size=(256, 256),
+        spatial_dim=2,
+        sw_batch_size=4,
+        overlap=0.50,
+        progress=False
     )
 
+    post_transforms = tr.Compose([
+        tr.Invertd(
+            keys="pred",
+            transform=tr.Compose(test_org_transforms_list),
+            orig_keys="image",
+            meta_keys="pred_meta_dict",
+            orig_meta_keys="image_meta_dict",
+            meta_key_postfix="meta_dict",
+            nearest_interp=False,
+            to_tensor=True,
+        ),
+        tr.Activationsd(keys="pred", softmax=True),
+        tr.AsDiscreted(keys="pred", argmax=True, to_onehot=None),
+        SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir=args.save_path, print_log=False,
+                   separate_folder=False, output_postfix="predicted_mask", resample=False),
+    ]
+    )
+    print('here1')
+    print(len(test_dataloader))
+    print(args.data_path)
     with torch.no_grad():
-        for i, test_data in enumerate(test_dataloader):
+        for i, test_data in enumerate(tqdm(test_dataloader, desc="Inference")):
             test_inputs = test_data["image"].to(device)
-
-            start_time = time.time()
             test_data["pred"] = inferer(test_inputs, model)
             test_data = [post_transforms(i) for i in decollate_batch(test_data)]
-            inf_time.append((time.time() - start_time) / test_inputs.shape[-1])
 
-    print(np.average(inf_time[1:]))
+    print('Process completed')
 
 
 if __name__ == '__main__':
@@ -173,17 +172,17 @@ if __name__ == '__main__':
 
     parser.add_argument('--saved_model_path',
                         type=str,
-                        default="./AttUnet_Aug.pth",
+                        default="/path/in/container/src/saved_models/AttUNet.pth",
                         help='path to the saved model')
 
     parser.add_argument('--data_path',
                         type=str,
-                        default="./sample_data/",
+                        default="../../dataset/f0832s1/",
                         help='path to the test data')
 
     parser.add_argument('--save_path',
                         type=str,
-                        default='../',
+                        default='../../dataset/f0832s1/prediction',
                         help='path to save the out')
 
     args = parser.parse_args()

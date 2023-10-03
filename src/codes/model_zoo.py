@@ -5,7 +5,7 @@ UNet = UNet(
     spatial_dims=2,
     in_channels=1,
     out_channels=2,
-    channels=(32, 64, 128, 256, 512),
+    channels=(64, 128, 256, 512, 1024),#(32, 64, 128, 256, 512),
     strides=(2, 2, 2, 2),
     # num_res_units=2,
     norm=Norm.BATCH,
@@ -20,7 +20,7 @@ BasicUNet = BasicUNet(
     spatial_dims=2,
     in_channels=1,
     out_channels=2,
-    features=(32, 64, 128, 256, 512, 32),
+    features=(64, 128, 256, 512, 1024, 64), #(32, 64, 128, 256, 512)
     norm=Norm.BATCH,
     dropout=0.15,
 )
@@ -29,12 +29,13 @@ AttUNet = AttentionUnet(
     spatial_dims=2,
     in_channels=1,
     out_channels=2,
-    channels=(32, 64, 128, 256, 512),
+    channels=(64, 128, 256, 512, 1024),  # (32, 64, 128, 256, 512),(64, 128, 256, 512, 1024)
     strides=(2, 2, 2, 2),
     kernel_size=3,
     up_kernel_size=3,
-    dropout=0.2,
+    dropout=0.15,
 )
+
 
 def dynunet():
     patch_size = [256, 256, 1]
@@ -66,6 +67,7 @@ def dynunet():
         norm_name="instance",
         # deep_supervision=True,
         # deep_supr_num=2,
+        dropout=0.15,
         res_block=False,
     )
     return net
